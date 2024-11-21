@@ -1,15 +1,15 @@
 <template>
   <v-app>
     <v-main>
+      <div v-if="mensagem" :class="['notification', tipoMensagem]">
+        {{ mensagem }}
+        
+      </div>
       <v-card>
         <v-tabs v-model="tab" align-tabs="center" bg-color="orange" stacked>
           <v-tab>
             <v-icon icon="mdi-account"></v-icon>
             Cliente
-          </v-tab>
-          <v-tab>
-            <v-icon icon="mdi-shopping"></v-icon>
-            Produtos
           </v-tab>
 
           <v-tab>
@@ -136,14 +136,6 @@
           </v-card>
           </v-dialog>
 
-
-
-
-
-
-
-
-
           <v-tabs-window-item>
             <v-card class="mx-auto" max-width="400">
               <v-card class="mx-auto" max-width="400" elevation="3" rounded>
@@ -151,45 +143,23 @@
                   class="align-end text-white"
                   height="200"
                   src="https://leadster.com.br/blog/wp-content/uploads/2023/04/O-que-e-o-marketing-de-produto.webp"
-                  cover
-                >
-                  <v-card-title class="font-weight-bold" style="background-color: rgba(0, 0, 0, 0.5);">Produtos</v-card-title>
+                  cover>
+                  <v-card-title class="font-weight-bold" style="background-color: rgba(0, 0, 0, 0.5);">Pedidos</v-card-title>
                 </v-img>
               </v-card>
               <v-card-actions>
                 <v-row justify="center" align="center">
                   <v-col cols="auto">
                     <v-btn color="orange" variant="outlined" @click="dialog = true">
-                      Adicionar Produto
+                      Adicionar Pedido
                     </v-btn>
                   </v-col>
                 </v-row>
               </v-card-actions>
             </v-card>
           </v-tabs-window-item>
-
-          <v-tabs-window-item>
-            <v-card>
-              <v-card-text> produtos </v-card-text>
-            </v-card>
-          </v-tabs-window-item>
         </v-tabs-window>
       </v-card>
-
-      <v-dialog v-model="a" max-width="500px">
-        <v-card>
-          <v-card-title class="text-h5">Adicionar Produto</v-card-title>
-          <v-card-text>
-            <v-text-field label="Nome do Produto" v-model="produto.nome"></v-text-field>
-            <v-text-field label="Preço" v-model="produto.preco" prefix="R$"></v-text-field>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="blue" text @click="dialog = false">Cancelar</v-btn>
-            <v-btn color="orange" text @click="adicionarProduto">Adicionar</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
     </v-main>
   </v-app>
 </template>
@@ -208,6 +178,9 @@ const dialogNovoCliente = ref(false)
 const tab = ref(0);
 const dialogClienteID = ref(false);
 const dialogExcluirCliente = ref(false);
+
+const mensagem = ref({});
+const tipoMensagem = ref('');
 
 const listarClientes = async () => {
   const response = await axios.get("http://localhost:8080/cliente");
@@ -250,14 +223,31 @@ const cancelar = () => {
 }
 
 const salvarCliente = async () =>{
-  if(cliente.value.id){
-    await axios.put(`http://localhost:8080/cliente/${cliente.value.id}`, cliente.value)
+  try{
+    let  response;
+    if(cliente.value.id){
+      response = await axios.put(`http://localhost:8080/cliente/${cliente.value.id}`, cliente.value)
     
-  } else {
-    await axios.post(`http://localhost:8080/cliente`, cliente.value)
+    } else {
+      response = await axios.post(`http://localhost:8080/cliente`, cliente.value)
+    }
+
+    mensagem.value = response.data.message || 'Mensagem padrão';
+    tipoMensagem.value='success';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
+    listarClientes();
+    dialogNovoCliente.value = false;
+  } catch (error) {
+    mensagem.value = error.response?.data?.message || 'Ocorreu um erro ao salvar o cliente.';
+    tipoMensagem.value = 'error';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
   }
-  listarClientes();
-  dialogNovoCliente.value = false;
 };
 
 function atualizarCliente (e){
@@ -280,6 +270,25 @@ const exluirCliente = async (e) => {
   dialogExcluirCliente.value = false;
   dialogClienteID.value = false;
 }
-
-
 </script>
+
+<style scoped>
+.notification {
+  padding: 10px;
+  border-radius: 5px;
+  margin-top: 20px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.success {
+  background-color: green;
+  color: white;
+}
+
+.error {
+  background-color: red;
+  color: white;
+}
+</style>
