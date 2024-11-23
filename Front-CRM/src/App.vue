@@ -5,6 +5,7 @@
         {{ mensagem }}
         
       </div>
+      
       <v-card>
         <v-tabs v-model="tab" align-tabs="center" bg-color="orange" stacked>
           <v-tab>
@@ -30,7 +31,7 @@
                     <v-spacer></v-spacer>
                     <v-dialog v-model ="dialogNovoCliente">
                       <template v-slot:activator="{ props }">
-                        <v-btn  @click="novo()" class="mb=2" color="primary" dark v-bind="props">Novo Cliente</v-btn>
+                        <v-btn  @click="novo()" class="mb=2" color="primary" dark v-bind="props">Cliente</v-btn>
                       </template>
                       <v-card>
                         <v-card-text>
@@ -179,7 +180,7 @@ const tab = ref(0);
 const dialogClienteID = ref(false);
 const dialogExcluirCliente = ref(false);
 
-const mensagem = ref({});
+const mensagem = ref('');
 const tipoMensagem = ref('');
 
 const listarClientes = async () => {
@@ -232,16 +233,19 @@ const salvarCliente = async () =>{
       response = await axios.post(`http://localhost:8080/cliente`, cliente.value)
     }
 
-    mensagem.value = response.data.message || 'Mensagem padrão';
-    tipoMensagem.value='success';
+    if (response.status >= 200 && response.status < 300) {
+      mensagem.value = response.data || 'Cliente salvo com sucesso!';
+      tipoMensagem.value = 'success';
 
-    setTimeout(() => {
-      mensagem.value = '';
-    }, 5000);
-    listarClientes();
-    dialogNovoCliente.value = false;
+      setTimeout(() => {
+        mensagem.value = '';
+      }, 5000);
+
+      listarClientes();
+      dialogNovoCliente.value = false;
+    }
   } catch (error) {
-    mensagem.value = error.response?.data?.message || 'Ocorreu um erro ao salvar o cliente.';
+    mensagem.value = error.response?.data || 'Ocorreu um erro ao salvar o cliente.';
     tipoMensagem.value = 'error';
 
     setTimeout(() => {
@@ -265,10 +269,29 @@ const confirmacaoDeExclusao = () => {
 }
 
 const exluirCliente = async (e) => {
-  await axios.delete(`http://localhost:8080/cliente/${e.id}`);
-  clientes.value = clientes.value.filter(cliente => cliente.id !== e.id); 
-  dialogExcluirCliente.value = false;
-  dialogClienteID.value = false;
+  try{
+    let  response;
+
+    response = await axios.delete(`http://localhost:8080/cliente/${e.id}`);
+    clientes.value = clientes.value.filter(cliente => cliente.id !== e.id); 
+    dialogExcluirCliente.value = false;
+    dialogClienteID.value = false;
+
+    mensagem.value = response.data || 'Cliente deletado!';
+    tipoMensagem.value = 'success';
+
+    setTimeout(() => {
+        mensagem.value = '';
+      }, 5000);
+
+  } catch (error) {
+    mensagem.value = error.response?.data || 'Ocorreu um erro ao deletar o cliente.';
+    tipoMensagem.value = 'error';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
+  }
 }
 </script>
 
