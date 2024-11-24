@@ -5,6 +5,7 @@
         {{ mensagem }}
         
       </div>
+      
       <v-card>
         <v-tabs v-model="tab" align-tabs="center" bg-color="orange" stacked>
           <v-tab>
@@ -30,7 +31,7 @@
                     <v-spacer></v-spacer>
                     <v-dialog v-model ="dialogNovoCliente">
                       <template v-slot:activator="{ props }">
-                        <v-btn  @click="novo()" class="mb=2" color="primary" dark v-bind="props">Novo Cliente</v-btn>
+                        <v-btn  @click="novo()" class="mb=2" color="primary" dark v-bind="props">Cliente</v-btn>
                       </template>
                       <v-card>
                         <v-card-text>
@@ -137,29 +138,58 @@
           </v-dialog>
 
           <v-tabs-window-item>
-            <v-card class="mx-auto" max-width="400">
-              <v-card class="mx-auto" max-width="400" elevation="3" rounded>
-                <v-img
-                  class="align-end text-white"
-                  height="200"
-                  src="https://leadster.com.br/blog/wp-content/uploads/2023/04/O-que-e-o-marketing-de-produto.webp"
-                  cover>
-                  <v-card-title class="font-weight-bold" style="background-color: rgba(0, 0, 0, 0.5);">Pedidos</v-card-title>
-                </v-img>
-              </v-card>
-              <v-card-actions>
-                <v-row justify="center" align="center">
-                  <v-col cols="auto">
-                    <v-btn color="orange" variant="outlined" @click="dialog = true">
-                      Adicionar Pedido
-                    </v-btn>
-                  </v-col>
-                </v-row>
-              </v-card-actions>
-            </v-card>
+            <v-container class="py-4 px-6">
+              <!-- Botão de Adicionar Pedido -->
+              <v-row justify="center" align="center" class="mb-4">
+                <v-btn color="primary" @click="abrirPedido = true" elevation="2">
+                  Adicionar Pedido
+                </v-btn>
+              </v-row>
+
+              <!-- Tabela de Pedidos -->
+              <v-data-table 
+                :items="pedidos"
+                class="mx-auto"
+                style="max-width: 800px; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);"
+              ></v-data-table>
+            </v-container>
           </v-tabs-window-item>
-        </v-tabs-window>
-      </v-card>
+            <v-dialog v-model="abrirPedido" max-width="600px" class="pedido-popup">
+              <v-card>
+                <v-card-title class="headline">Informações do Pedido</v-card-title>
+                <v-card-text>
+                  <v-select
+                    v-model="clienteSelecionado"
+                    :items="clientes"
+                    item-title="nome" 
+                    item-value="id"
+                    label="Selecione um Cliente"
+                    outlined
+                  ></v-select>
+                  <v-select
+                    v-model="orderStatus"
+                    :items="statusOptions"
+                    label="Status do Pedido"
+                    outlined
+                    class="mt-4"
+                  ></v-select>
+                  <v-text-field
+                    v-model="orderValue"
+                    label="Valor do Pedido"
+                    prefix="R$"
+                    outlined
+                    class="mt-4"
+                  ></v-text-field>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn color="blue" @click="salvarPedido">Salvar Pedido</v-btn>
+                  <v-btn color="red" @click="abrirPedido = false">Cancelar</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+          </v-tabs-window>
+        </v-card>
     </v-main>
   </v-app>
 </template>
@@ -169,7 +199,54 @@ import { ref, onMounted, computed, nextTick, watch} from 'vue';
 import axios from 'axios';
 onMounted(() => {
   listarClientes();
+  listarPedidos();
 });
+
+const pedidos = ref ([]);
+const abrirPedido = ref(false);
+const statusOptions = ref(['Pendente', 'Em andamento', 'Concluído']);
+
+const clienteSelecionado = ref(null);
+const orderStatus = ref('');
+const orderValue = ref(null);
+
+
+const listarPedidos = async () => {
+  const response = await axios.get("http://localhost:8080/pedido");
+  pedidos.value = response.data;
+};
+
+const salvarPedido = async () => {
+
+  const pedido = {
+    idCliente: clienteSelecionado.value,
+    status: orderStatus.value,
+    valor: orderValue.value
+  };
+
+  try {
+    const response = await axios.post('http://localhost:8080/pedido', pedido);
+
+    if (response.status >= 200 && response.status < 300) {
+      mensagem.value = 'Pedido criado com sucesso!';
+      tipoMensagem.value = 'success';
+
+      setTimeout(() => {
+        mensagem.value = '';
+      }, 5000);
+
+      abrirPedido.value = false;
+    }
+  } catch (error) {
+    mensagem.value = error.response?.data || 'Ocorreu um erro ao salvar o pedido.';
+    tipoMensagem.value = 'error';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
+  }
+};
+
 
 const clientes = ref([]);
 const cliente = ref({})
@@ -179,7 +256,7 @@ const tab = ref(0);
 const dialogClienteID = ref(false);
 const dialogExcluirCliente = ref(false);
 
-const mensagem = ref({});
+const mensagem = ref('');
 const tipoMensagem = ref('');
 
 const listarClientes = async () => {
@@ -232,16 +309,19 @@ const salvarCliente = async () =>{
       response = await axios.post(`http://localhost:8080/cliente`, cliente.value)
     }
 
-    mensagem.value = response.data.message || 'Mensagem padrão';
-    tipoMensagem.value='success';
+    if (response.status >= 200 && response.status < 300) {
+      mensagem.value = response.data || 'Cliente salvo com sucesso!';
+      tipoMensagem.value = 'success';
 
-    setTimeout(() => {
-      mensagem.value = '';
-    }, 5000);
-    listarClientes();
-    dialogNovoCliente.value = false;
+      setTimeout(() => {
+        mensagem.value = '';
+      }, 5000);
+
+      listarClientes();
+      dialogNovoCliente.value = false;
+    }
   } catch (error) {
-    mensagem.value = error.response?.data?.message || 'Ocorreu um erro ao salvar o cliente.';
+    mensagem.value = error.response?.data || 'Ocorreu um erro ao salvar o cliente.';
     tipoMensagem.value = 'error';
 
     setTimeout(() => {
@@ -265,10 +345,29 @@ const confirmacaoDeExclusao = () => {
 }
 
 const exluirCliente = async (e) => {
-  await axios.delete(`http://localhost:8080/cliente/${e.id}`);
-  clientes.value = clientes.value.filter(cliente => cliente.id !== e.id); 
-  dialogExcluirCliente.value = false;
-  dialogClienteID.value = false;
+  try{
+    let  response;
+
+    response = await axios.delete(`http://localhost:8080/cliente/${e.id}`);
+    clientes.value = clientes.value.filter(cliente => cliente.id !== e.id); 
+    dialogExcluirCliente.value = false;
+    dialogClienteID.value = false;
+
+    mensagem.value = response.data || 'Cliente deletado!';
+    tipoMensagem.value = 'success';
+
+    setTimeout(() => {
+        mensagem.value = '';
+      }, 5000);
+
+  } catch (error) {
+    mensagem.value = error.response?.data || 'Ocorreu um erro ao deletar o cliente.';
+    tipoMensagem.value = 'error';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
+  }
 }
 </script>
 
@@ -291,4 +390,10 @@ const exluirCliente = async (e) => {
   background-color: red;
   color: white;
 }
+
+.pedido-popup .v-card {
+  background-color: black;
+  color: white;
+}
+
 </style>
