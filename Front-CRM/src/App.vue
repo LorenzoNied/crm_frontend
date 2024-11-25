@@ -91,7 +91,7 @@
                 <v-btn @click="atualizarCliente(cliente)" color="blue" class="position-absolute" style="right: 140px;">
                   <v-icon icon="mdi-pencil"></v-icon> Editar
                 </v-btn>
-                <v-btn @click="confirmacaoDeExclusao()" color="red" class="position-absolute" style="right: 15px;">
+                <v-btn @click="confirmacaoDeExclusao(cliente)" color="red" class="position-absolute" style="right: 15px;">
                   <v-icon icon="mdi-close-circle"></v-icon>
                   Excluir</v-btn>
               </v-card-text>
@@ -131,36 +131,103 @@
             <v-card-actions>
               <v-spacer></v-spacer>
               <v-btn color="blue-darken-1" variant="text" @click="fecharConfirmacao">cancelar</v-btn>
-              <v-btn color="red" variant="text" @click="exluirCliente(cliente)">Excluir</v-btn>
+              <v-btn color="red" variant="text" @click="exluirCliente()">Excluir</v-btn>
+              <v-spacer></v-spacer>
+            </v-card-actions>
+          </v-card>
+          </v-dialog>
+
+          <v-dialog v-model="dialogExcluirPedido" max-width="500px">
+            <v-card>
+            <v-card-title class="text-h5 text-center">Você realmente quer excluir este pedido?</v-card-title>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="blue-darken-1" variant="text" @click="dialogExcluirPedido = false">cancelar</v-btn>
+              <v-btn color="red" variant="text" @click="exluirPedido()">Excluir</v-btn>
               <v-spacer></v-spacer>
             </v-card-actions>
           </v-card>
           </v-dialog>
 
           <v-tabs-window-item>
-            <v-card class="mx-auto" max-width="400">
-              <v-card class="mx-auto" max-width="400" elevation="3" rounded>
-                <v-img
-                  class="align-end text-white"
-                  height="200"
-                  src="https://leadster.com.br/blog/wp-content/uploads/2023/04/O-que-e-o-marketing-de-produto.webp"
-                  cover>
-                  <v-card-title class="font-weight-bold" style="background-color: rgba(0, 0, 0, 0.5);">Pedidos</v-card-title>
-                </v-img>
-              </v-card>
-              <v-card-actions>
-                <v-row justify="center" align="center">
-                  <v-col cols="auto">
-                    <v-btn color="orange" variant="outlined" @click="dialog = true">
-                      Adicionar Pedido
+            <v-container class="py-4 px-6">
+              <v-row justify="center" align="center" class="mb-4">
+                <v-btn color="primary" @click="abrirPedido = true" elevation="2">
+                  Adicionar Pedido
+                </v-btn>
+              </v-row>
+
+              <!-- Tabela de Pedidos -->
+              <v-data-table 
+                v-model:expanded="expanded"
+                :headers="pedidoheaders"
+                :items="pedidos"
+                item-value="id"
+                class="mx-auto"
+                style="max-width: 1300px; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);"
+                show-expand>
+              <template v-slot:item.idCliente="{ item }">
+              <span>{{ getClienteName(item.idCliente) }}</span>
+              </template>
+              <template v-slot:expanded-row="{ columns, item }">
+                <tr>
+                  <td :colspan="columns.length">
+                    <v-btn  @click="atualizarPedido(item)" color="green" style="width: 10px; float: right; margin-right: 10px; margin-top: 10px; height: 70px;"> 
+                      <v-icon icon="mdi-check-circle"></v-icon>
                     </v-btn>
-                  </v-col>
-                </v-row>
-              </v-card-actions>
-            </v-card>
+                    <v-btn  @click="confirmarExcluirPedido(item)" color="red" style="width: 10px; float: right; margin-right: 10px; margin-top: 10px; height: 70px;"> 
+                      <v-icon icon="	mdi-close-circle"></v-icon>
+                    </v-btn>
+                    <v-select
+                      v-model="item.status"
+                      :items="statusOptions"
+                      label="Status do Pedido"
+                      outlined
+                      class="mt-4"
+                      style="width: 200px; float: right; margin-right: 90px;" 
+                  ></v-select>
+                  </td>
+                </tr>
+              </template>
+              </v-data-table>
+            </v-container>
           </v-tabs-window-item>
-        </v-tabs-window>
-      </v-card>
+            <v-dialog v-model="abrirPedido" max-width="600px" class="pedido-popup">
+              <v-card>
+                <v-card-title class="headline">Informações do Pedido</v-card-title>
+                <v-card-text>
+                  <v-select
+                    v-model="clienteSelecionado"
+                    :items="clientes"
+                    item-title="nome" 
+                    item-value="id"
+                    label="Selecione um Cliente"
+                    outlined
+                  ></v-select>
+                  <v-select
+                    v-model="orderStatus"
+                    :items="statusOptions"
+                    label="Status do Pedido"
+                    outlined
+                    class="mt-4"
+                  ></v-select>
+                  <v-text-field
+                    v-model="orderValue"
+                    label="Valor do Pedido"
+                    prefix="R$"
+                    outlined
+                    class="mt-4"
+                  ></v-text-field>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn color="blue" @click="salvarPedido">Salvar Pedido</v-btn>
+                  <v-btn color="red" @click="abrirPedido = false">Cancelar</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+          </v-tabs-window>
+        </v-card>
     </v-main>
   </v-app>
 </template>
@@ -170,7 +237,139 @@ import { ref, onMounted, computed, nextTick, watch} from 'vue';
 import axios from 'axios';
 onMounted(() => {
   listarClientes();
+  listarPedidos();
 });
+
+const pedidos = ref ([]);
+const abrirPedido = ref(false);
+const statusOptions = ref(['Pendente', 'Em andamento', 'Concluído']);
+const expanded = ref([]);
+
+const clienteSelecionado = ref(null);
+const orderStatus = ref('');
+const orderValue = ref(null);
+const dialogExcluirPedido = ref(false);
+
+
+const listarPedidos = async () => {
+  const response = await axios.get("http://localhost:8080/pedido");
+  pedidos.value = response.data;
+};
+
+const salvarPedido = async () => {
+
+  const pedido = {
+    idCliente: clienteSelecionado.value,
+    status: orderStatus.value,
+    valor: orderValue.value
+  };
+
+  try {
+      const response = await axios.post('http://localhost:8080/pedido', pedido); 
+
+    if (response.status >= 200 && response.status < 300) {
+      mensagem.value = 'Pedido criado com sucesso!';
+      tipoMensagem.value = 'success';
+
+      setTimeout(() => {
+        mensagem.value = '';
+      }, 5000);
+
+      listarPedidos();
+      abrirPedido.value = false;
+    }
+  } catch (error) {
+    mensagem.value = error.response?.data || 'Ocorreu um erro ao salvar o pedido.';
+    tipoMensagem.value = 'error';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
+  }
+};
+
+const pedidoheaders =ref ([{
+  align:'start',
+  sortable: false,
+  key: 'name',
+  },
+  {title: 'ID', key: 'id'},
+  {title: 'Cliente', key: 'idCliente'},
+  {title: 'Valor', key: 'valor'},
+  {title: 'Status', key: 'status'},
+])
+
+const atualizarPedido = async (item) => {
+  const pedido = {
+    id: item.id,
+    idCliente: item.idCliente,
+    status: item.status,
+    valor: item.valor,
+  };
+
+  try {
+    const response = await axios.put(`http://localhost:8080/pedido/${pedido.id}`, pedido);
+
+    if (response.status >= 200 && response.status < 300) {
+      mensagem.value = 'Pedido atualizado com sucesso!';
+      tipoMensagem.value = 'success';
+
+      setTimeout(() => {
+        mensagem.value = '';
+      }, 5000);
+    }
+  } catch (error) {
+    mensagem.value = error.response?.data || 'Ocorreu um erro ao salvar o pedido.';
+    tipoMensagem.value = 'error';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
+  }
+};
+
+const confirmarExcluirPedido = (item) => {
+  dialogExcluirPedido.value = true;
+  pedidoParaExcluir.value = item;
+}
+const pedidoParaExcluir = ref(null);
+const exluirPedido = async () => {
+  try {
+    const response = await axios.delete(`http://localhost:8080/pedido/${pedidoParaExcluir.value.id}`);
+    pedidos.value = pedidos.value.filter(pedido => pedido.id !== pedidoParaExcluir.value.id);
+    dialogExcluirPedido.value = false;
+
+    mensagem.value = response.data || 'Pedido deletado!';
+    tipoMensagem.value = 'success';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
+  } catch (error) {
+    mensagem.value = error.response?.data || 'Ocorreu um erro ao deletar o pedido.';
+    tipoMensagem.value = 'error';
+
+    setTimeout(() => {
+      mensagem.value = '';
+    }, 5000);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+const getClienteName = (idCliente) => {
+  const cliente = clientes.value.find(cliente => cliente.id === idCliente);
+  return cliente ? cliente.nome : 'Cliente não encontrado';
+};
 
 const clientes = ref([]);
 const cliente = ref({})
@@ -264,16 +463,19 @@ const fecharConfirmacao = () => {
   dialogExcluirCliente.value = false;
 }
 
-const confirmacaoDeExclusao = () => {
+const confirmacaoDeExclusao = (item) => {
   dialogExcluirCliente.value = true;
+  clienteParaExcluir.value = item;
 }
 
-const exluirCliente = async (e) => {
+const clienteParaExcluir = ref(null);
+
+const exluirCliente = async () => {
   try{
     let  response;
 
-    response = await axios.delete(`http://localhost:8080/cliente/${e.id}`);
-    clientes.value = clientes.value.filter(cliente => cliente.id !== e.id); 
+    response = await axios.delete(`http://localhost:8080/cliente/${clienteParaExcluir.value.id}`);
+    clientes.value = clientes.value.filter(cliente => cliente.id !== clienteParaExcluir.value.id); 
     dialogExcluirCliente.value = false;
     dialogClienteID.value = false;
 
@@ -314,4 +516,10 @@ const exluirCliente = async (e) => {
   background-color: red;
   color: white;
 }
+
+.pedido-popup .v-card {
+  background-color: black;
+  color: white;
+}
+
 </style>
